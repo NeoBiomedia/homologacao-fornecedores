@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ficha de Homologação de Fornecedores</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  body { font-family: Arial, sans-serif; background:#fff; margin: 40px; }
+  .container { max-width: 800px; margin:auto; }
+  .logo { display:block; margin:0 auto; width:3cm; height:3cm; object-fit:contain; }
+  h1,h2 { text-align:center; }
+  h1 { font-size:20px; margin-top:10px; }
+  h2 { font-size:16px; margin-bottom:30px; }
+  label { font-weight:bold; }
+  input, textarea, select { width:100%; padding:6px; margin-bottom:15px; box-sizing:border-box; }
+  button { padding:10px 15px; margin:5px; cursor:pointer; }
+  .hint { font-size:12px; color:#555; margin-top:-10px; margin-bottom:15px; }
+  hr { margin:25px 0; }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <img id="logoImg" class="logo" alt="Neo Biomedia" />
+
+  <h1>NEO BIOMEDIA AVÍCOLA S.A</h1>
+  <h2>FICHA DE HOMOLOGAÇÃO DE FORNECEDORES</h2>
+
+  <form id="formHomologacao">
+
+    <label>Razão Social:</label>
+    <input type="text" id="razao" required>
+
+    <label>CNPJ:</label>
+    <input type="text" id="cnpj" required placeholder="00.000.000/0000-00">
+    <div class="hint">Pode colar com ou sem máscara.</div>
+
+    <label>Responsável Técnico:</label>
+    <input type="text" id="responsavel">
+
+    <label>Email do Fornecedor (para rastreabilidade):</label>
+    <input type="email" id="emailFornecedor" required>
+
+    <label>Telefone:</label>
+    <input type="text" id="telefone">
+
+    <label>Possui Registro no MAPA?</label>
+    <select id="mapa">
+      <option>Sim</option>
+      <option>Não</option>
+    </select>
+
+    <label>Possui Licença Sanitária Vigente?</label>
+    <select id="sanitaria">
+      <option>Sim</option>
+      <option>Não</option>
+    </select>
+
+    <label>Certificação ISO 9001?</label>
+    <select id="iso">
+      <option>Sim</option>
+      <option>Não</option>
+    </select>
+
+    <label>Capacidade Produtiva Mensal:</label>
+    <input type="text" id="capacidade">
+
+    <label>Lead Time Médio (dias):</label>
+    <input type="number" id="leadtime">
+
+    <label>Observações:</label>
+    <textarea id="obs"></textarea>
+
+    <hr>
+
+    <h3>DOCUMENTAÇÃO OBRIGATÓRIA PARA ENVIO</h3>
+
+    <p>Para conclusão do processo de homologação, deverão ser anexados ao e-mail os seguintes documentos digitalizados:</p>
+    <ul>
+      <li>Cartão CNPJ atualizado</li>
+      <li>Contrato Social consolidado</li>
+      <li>Certidões negativas (Federal, Estadual e FGTS)</li>
+      <li>Licença Sanitária vigente</li>
+      <li>Registro do produto no MAPA (quando aplicável)</li>
+      <li>FISPQ atualizada</li>
+      <li>Ficha Técnica do produto</li>
+      <li>Certificado ISO 9001 (se aplicável)</li>
+      <li>Comprovante de Responsável Técnico</li>
+      <li>Procedimento de rastreabilidade ou BPF</li>
+    </ul>
+
+    <label>
+      <input type="checkbox" id="declaracao" required>
+      Declaro que todos os documentos acima serão anexados ao e-mail juntamente com esta ficha.
+    </label>
+
+    <br><br>
+
+    <label>Data de Preenchimento:</label>
+    <input type="text" id="dataPreenchimento" readonly>
+
+    <label>Assinatura Digital (Nome Completo do Responsável):</label>
+    <input type="text" id="assinatura" required>
+
+    <br>
+
+    <button type="button" onclick="gerarPDF()">Gerar PDF</button>
+    <button type="button" onclick="enviarEmail()">Gerar PDF e Abrir Email</button>
+
+  </form>
+</div>
+
+<script>
+  // ✅ Logo EMBUTIDO (offline)
+  const LOGO_DATA_URI = "data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAA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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACWTrb+KUUsnW38UogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlk62/ilFLJ1t/FKIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZOtv4pRSydbfxSiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//Z";
+  document.getElementById("logoImg").src = LOGO_DATA_URI;
+
+  document.getElementById("dataPreenchimento").value =
+    new Date().toLocaleDateString('pt-BR');
+
+  async function gerarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    // Logo no PDF: 3x3cm = 30x30mm
+    try {
+      doc.addImage(LOGO_DATA_URI, "JPEG", 90, 10, 30, 30);
+    } catch (e) {
+      // segue sem logo se o browser bloquear por algum motivo
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text("NEO BIOMEDIA AVÍCOLA S.A", 20, 50);
+    doc.text("FICHA DE HOMOLOGAÇÃO DE FORNECEDORES", 20, 58);
+
+    let y = 70;
+
+    function addField(label, value) {
+      const text = `${label}: ${value || ""}`;
+      const lines = doc.splitTextToSize(text, 170);
+      doc.text(lines, 20, y);
+      y += (lines.length * 6) + 2;
+    }
+
+    addField("Razão Social", document.getElementById("razao").value);
+    addField("CNPJ", document.getElementById("cnpj").value);
+    addField("Responsável Técnico", document.getElementById("responsavel").value);
+    addField("Email Fornecedor", document.getElementById("emailFornecedor").value);
+    addField("Telefone", document.getElementById("telefone").value);
+    addField("Registro MAPA", document.getElementById("mapa").value);
+    addField("Licença Sanitária", document.getElementById("sanitaria").value);
+    addField("ISO 9001", document.getElementById("iso").value);
+    addField("Capacidade Produtiva", document.getElementById("capacidade").value);
+    addField("Lead Time (dias)", document.getElementById("leadtime").value);
+    addField("Observações", document.getElementById("obs").value);
+    addField("Declaração", document.getElementById("declaracao").checked ? "Sim" : "Não");
+    addField("Data", document.getElementById("dataPreenchimento").value);
+    addField("Assinatura Digital", document.getElementById("assinatura").value);
+
+    doc.save("Ficha_Homologacao_NeoBiomedia.pdf");
+  }
+
+  function enviarEmail() {
+    gerarPDF();
+
+    const assunto = "Ficha de Homologação - Neo Biomedia Avícola S.A";
+    const corpo =
+`Prezados,
+
+Segue Ficha de Homologação preenchida. Os documentos obrigatórios estão anexados conforme checklist.
+
+Atenciosamente.`;
+
+    window.location.href =
+      "mailto:compras@neobiomedia.com;daniela.ricci@neobiomedia.com;liliane.bovo@neobiomedia.com"
+      + "?subject=" + encodeURIComponent(assunto)
+      + "&body=" + encodeURIComponent(corpo);
+  }
+</script>
+
+</body>
+</html>
